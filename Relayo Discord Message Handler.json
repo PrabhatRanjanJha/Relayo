@@ -1,0 +1,973 @@
+{
+  "name": "Relayo Discord Message Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        96
+      ],
+      "id": "7243e324-c3fe-43df-afc8-25a642cb558d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst lastMessageId = staticData.last_message_id;\n\n// If a saved ID exists, pass it. Otherwise, return an empty object so 'after' is omitted.\nif (lastMessageId) {\n  return [{ json: { last_message_id: lastMessageId } }];\n} else {\n  return [{ json: {} }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ],
+      "id": "091d6125-385e-42dd-87d3-e67e38aeafcf",
+      "name": "Get last_message_id"
+    },
+    {
+      "parameters": {
+        "url": "=https://discord.com/api/v10/channels/1553000614059835497/messages",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "50"
+            },
+            {
+              "name": "after",
+              "value": "={{ $json.last_message_id }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bot ADD_YOUR_BOT_TOKEN_HERE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        96
+      ],
+      "id": "ed145d4e-2d81-4fa3-9a96-d6b791878de4",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4e3201e7-c850-4412-a1f4-39b6d9d4d0de",
+              "leftValue": "={{ $json.author.bot }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        96
+      ],
+      "id": "cfeb93f1-0b3a-4d6e-b621-82b83c7a83b4",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.content }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an expert customer support operations assistant. \n\nYour job is to process incoming Discord user messages through a strict 3-stage pipeline and output ONLY a valid JSON object (no markdown code blocks, no extra commentary).\n\nThe JSON object must have exactly these keys:\n{\n  \"classify\": \"One of: [Bug Report, Feature Request, General Inquiry, Urgent Support]\",\n  \"draft\": \"A professional, friendly, and concise response draft that can be posted back to the user\",\n  \"flag\": \"One of: [True, False]\"\n}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1120,
+        96
+      ],
+      "id": "73b2a411-211b-4440-83e9-6870edeed2b9",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        320
+      ],
+      "id": "1f8af669-f180-436f-8b49-82fb12f087e9",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "Bjn4JOHSaC1ZmW05",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\n\nconst items = $('HTTP Request').all();\n\nif (items.length > 0) {\n  staticData.last_message_id = items[0].json.id;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        -64
+      ],
+      "id": "d34cfeb8-15e6-4986-a54e-5f62459b5a46",
+      "name": "Save last_message_id"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n// Get the original items from your Filter node to match 1:1\nconst filterItems = $('Filter').all();\n\nreturn items.map((item, index) => {\n  // Grab the corresponding original message data\n  const originalData = filterItems[index] ? filterItems[index].json : {};\n  \n  let parsedObj = {};\n  try {\n    // Extract and clean the LLM's text output\n    const rawText = item.json.text || item.json.response || \"{}\";\n    const cleanedText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();\n    parsedObj = JSON.parse(cleanedText);\n  } catch (e) {\n    // Fallback if JSON parsing fails\n    parsedObj = {\n      classify: \"General Inquiry\",\n      draft: item.json.text || \"Could not generate draft.\",\n      flag: \"LOW\"\n    };\n  }\n\n  // Return a clean, unified object containing metadata + AI results\n  return { \n    json: {\n      message_id: originalData.id || \"\",\n      content: originalData.content || \"\",\n      ...parsedObj\n    } \n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        96
+      ],
+      "id": "3bc5af85-5025-4d46-a0db-ff57982a4439",
+      "name": "Parse"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1696,
+        96
+      ],
+      "id": "b222e675-71d6-47c4-86bf-6578425db5bf",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "002f2127-c9e3-4729-93e6-0382d48a3719",
+              "leftValue": "={{ $json.content }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        96
+      ],
+      "id": "7c5f84df-46d6-4041-b55f-b04efb7efc1b",
+      "name": "If (new messages exist)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5d19aec1-07fa-4a1d-912b-f80f7a3ddcc2",
+              "leftValue": "={{ $json.flag }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1920,
+        112
+      ],
+      "id": "f8ae819c-ecdd-4524-9f40-0220e0c92ce4",
+      "name": "If (flagged)"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "message_id": "={{ $json.message_id }}",
+            "content": "={{ $json.content }}",
+            "classify": "={{ $json.classify }}",
+            "draft": "={{ $json.draft }}",
+            "checked": "false",
+            "status": "pending",
+            "flagged date": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "classify",
+              "displayName": "classify",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "draft",
+              "displayName": "draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "checked",
+              "displayName": "checked",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "flagged date",
+              "displayName": "flagged date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2160,
+        96
+      ],
+      "id": "aff0c1d1-eaf7-4735-95b4-1e82c14c6a51",
+      "name": "Append flagged message",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1553000609370607638",
+          "mode": "list",
+          "cachedResultName": "Relayo Server",
+          "cachedResultUrl": "https://discord.com/channels/1553000609370607638"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1553000614059835497",
+          "mode": "list",
+          "cachedResultName": "general",
+          "cachedResultUrl": "https://discord.com/channels/1553000609370607638/1553000614059835497"
+        },
+        "content": "={{ $json.draft }}",
+        "options": {
+          "message_reference": "={{ $json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        336
+      ],
+      "id": "fb982594-91e1-4510-8e68-eae6aaa5ee9c",
+      "name": "Send auto reply",
+      "webhookId": "e5ddc2dc-1dc1-4eef-bcfa-f062db0ca1e4",
+      "credentials": {
+        "discordBotApi": {
+          "id": "6STzIyr2o3eE6G2m",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1553000609370607638",
+          "mode": "list",
+          "cachedResultName": "Relayo Server",
+          "cachedResultUrl": "https://discord.com/channels/1553000609370607638"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1553000614059835497",
+          "mode": "list",
+          "cachedResultName": "general",
+          "cachedResultUrl": "https://discord.com/channels/1553000609370607638/1553000614059835497"
+        },
+        "content": "Thanks for reaching out! Your message has been flagged for review by our team and you'll get a proper reply soon.",
+        "options": {
+          "message_reference": "={{ $('Loop Over Items').item.json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        96
+      ],
+      "id": "715c0f4f-43b7-4823-afd7-8574b5b364ce",
+      "name": "Send confirmation message",
+      "webhookId": "f015f624-a8b6-4d6d-adb3-3532dd02f733",
+      "credentials": {
+        "discordBotApi": {
+          "id": "6STzIyr2o3eE6G2m",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## **Discord Message Intake & Auto-Reply**",
+        "height": 704,
+        "width": 2608,
+        "color": "#FEA9A9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        -128
+      ],
+      "id": "186ac78b-9290-4973-9ae6-8404088d19b0",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        512,
+        1008
+      ],
+      "id": "c971629e-a95b-4d2e-9b2c-aaf596c19e4e",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "pending"
+            },
+            {
+              "lookupColumn": "checked",
+              "lookupValue": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        736,
+        1008
+      ],
+      "id": "bc468509-39a9-430f-be5a-2c2695b8cbbe",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        960,
+        1008
+      ],
+      "id": "0fc06c55-6c16-44b4-ab74-e6ab4222bd89",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1553000609370607638",
+          "mode": "list",
+          "cachedResultName": "Relayo Server",
+          "cachedResultUrl": "https://discord.com/channels/1553000609370607638"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1553000614059835497",
+          "mode": "list",
+          "cachedResultName": "general",
+          "cachedResultUrl": "https://discord.com/channels/1553000609370607638/1553000614059835497"
+        },
+        "content": "={{ $('Get row(s) in sheet').item.json.draft }}",
+        "options": {
+          "message_reference": "={{ $('Get row(s) in sheet').item.json.message_id }}"
+        }
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        1008
+      ],
+      "id": "e3139d56-807c-4100-8554-8750dcd81730",
+      "name": "Send human approved message",
+      "webhookId": "54c8cb16-1cc7-4937-89fa-46b94568c9d9",
+      "credentials": {
+        "discordBotApi": {
+          "id": "6STzIyr2o3eE6G2m",
+          "name": "Discord Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "message_id": "={{ $('Get row(s) in sheet').item.json.message_id }}",
+            "content": "={{ $('Get row(s) in sheet').item.json.content }}",
+            "classify": "={{ $('Get row(s) in sheet').item.json.classify }}",
+            "draft": "={{ $('Get row(s) in sheet').item.json.draft }}",
+            "checked": "={{ $('Get row(s) in sheet').item.json.checked }}",
+            "status": "sent"
+          },
+          "matchingColumns": [
+            "message_id"
+          ],
+          "schema": [
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "content",
+              "displayName": "content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "classify",
+              "displayName": "classify",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "draft",
+              "displayName": "draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "checked",
+              "displayName": "checked",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1408,
+        1088
+      ],
+      "id": "f7cc488c-45d9-47dd-9801-ce2611ac4d75",
+      "name": "Update Status",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#all-bischat-test",
+          "mode": "name"
+        },
+        "text": "All reviewed replies have been successfully sent out via the automation workflow.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1184,
+        816
+      ],
+      "id": "2f3c2b1f-c941-4cb6-be18-39fa4c28dece",
+      "name": "Workflow Completed Notification",
+      "webhookId": "9ae85550-2084-43c6-8041-f75b13e58212",
+      "credentials": {
+        "slackApi": {
+          "id": "1KCYHaverM2GPvZC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## **Send Reviewed Replies**",
+        "height": 560,
+        "width": 1200,
+        "color": "#AFB2FD"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        432,
+        768
+      ],
+      "id": "9b3b7397-5928-4e64-8b9d-2ab116cbb21c",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get last_message_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get last_message_id": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If (new messages exist)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Save last_message_id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If (flagged)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (new messages exist)": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (flagged)": {
+      "main": [
+        [
+          {
+            "node": "Append flagged message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send auto reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append flagged message": {
+      "main": [
+        [
+          {
+            "node": "Send confirmation message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send auto reply": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send confirmation message": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Workflow Completed Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send human approved message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send human approved message": {
+      "main": [
+        [
+          {
+            "node": "Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b6b9e677-3949-4fd2-9b89-478a745dd0f8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9301c72e1eb2f309c10afde3ddf50a9ca258c8bb08bc5512c699c9e083fc5277"
+  },
+  "id": "W4HlEy8yh63trEhK",
+  "tags": []
+}

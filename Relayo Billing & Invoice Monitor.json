@@ -1,0 +1,976 @@
+{
+  "name": "Relayo Billing & Invoice Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "950cd8e7-231a-4ddb-aacf-77c98556e3bb",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -384,
+        -240
+      ],
+      "id": "dd7d9763-b9bc-4b5b-bc7d-17bc386b8935",
+      "name": "Webhook",
+      "webhookId": "950cd8e7-231a-4ddb-aacf-77c98556e3bb"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json.body;\n\nconst invoiceId = `INV-${Date.now()}`;\n\nconst invoiceText = `\n--------------------------------------\n           BISCHAT INVOICE\n--------------------------------------\nInvoice ID:     ${invoiceId}\nDate:           ${data.payment_date}\nDue Date:       ${data.due_date}\n\nBill To:\n${data.customer_name}\n${data.customer_email}\n\n--------------------------------------\nPlan:           ${data.plan}\nAmount:         ${data.currency} ${data.amount}\nTransaction ID: ${data.transaction_id}\n--------------------------------------\n\nThank you for your payment.\n`;\n\nreturn {\n  json: {\n    ...data,\n    invoice_id: invoiceId,\n    payment_status: \"paid\",\n    invoice_text: invoiceText\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        -240
+      ],
+      "id": "a1922a93-fa70-45c3-8e6c-f9064fb260cc",
+      "name": "Invoice Generation"
+    },
+    {
+      "parameters": {
+        "fromEmail": "prabhatjha2022@gmail.com",
+        "toEmail": "={{ $json.Email }}",
+        "subject": "Invoice  - BisChat",
+        "emailFormat": "text",
+        "text": "=Please find your invoice attached below:-\n\n{{ $('Invoice Generation').item.json.invoice_text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        288,
+        -240
+      ],
+      "id": "9cbbc612-fd3f-42ea-a4ad-c47f8a219b16",
+      "name": "Send an Email",
+      "webhookId": "7f045422-7a1a-457d-9a37-da4cf9d7b356",
+      "credentials": {
+        "smtp": {
+          "id": "7Y1vLmEDjTVvboST",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## **Payment-Received Path**",
+        "height": 240,
+        "width": 992,
+        "color": "#FF7B42"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        -320
+      ],
+      "id": "ae8931a5-1940-46ae-bfd3-d5391785a5b3",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -416,
+        240
+      ],
+      "id": "e015fb0b-eb1e-41ce-a228-7d1d6be02b11",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        432
+      ],
+      "id": "9707e2d2-4a13-4094-9dc2-7dabad080d12",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fe7a5e36-f528-4c32-8905-e4f9de4ee7c7",
+              "name": "customers",
+              "value": "={{ $json.customers }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        240
+      ],
+      "id": "a81be2ff-c1fe-4266-9bfb-35aba54198aa",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        704,
+        240
+      ],
+      "id": "6b02328e-1bfd-4a84-bb97-4f32249d815b",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1vbSCLbjEpdIshbURm-Nlq47FoadxpbPjhte-1HDLjQ4/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "S1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vbSCLbjEpdIshbURm-Nlq47FoadxpbPjhte-1HDLjQ4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer ID": "={{ $json.customer_id }}",
+            "Name": "={{ $json.customer_name }}",
+            "Email": "={{ $json.customer_email }}",
+            "Plan": "={{ $json.plan }}",
+            "Amount": "={{ $json.amount }}",
+            "Currency": "={{ $json.currency }}",
+            "Payment Date": "={{ $json.payment_date }}",
+            "Due Date": "={{ $json.due_date }}",
+            "Transaction ID": "={{ $json.transaction_id }}",
+            "Invoice ID": "={{ $json.invoice_id }}",
+            "Status": "={{ $json.payment_status }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "Customer ID",
+              "displayName": "Customer ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Plan",
+              "displayName": "Plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Amount",
+              "displayName": "Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Currency",
+              "displayName": "Currency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Payment Date",
+              "displayName": "Payment Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Due Date",
+              "displayName": "Due Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Transaction ID",
+              "displayName": "Transaction ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Invoice ID",
+              "displayName": "Invoice ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        -240
+      ],
+      "id": "36a581a0-c930-47af-9e38-9780f2ac5cfd",
+      "name": "Append row in Billing Log Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Flagged": "={{ $json.customers[0]['Invoice ID'] }}",
+            "Email": "={{ $json.customers[0].Email }}",
+            "Flagged Date": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Flagged",
+              "displayName": "Flagged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Approved",
+              "displayName": "Approved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Flagged Date",
+              "displayName": "Flagged Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        928,
+        256
+      ],
+      "id": "f9442b20-4810-48fd-a2fc-8e660887fea0",
+      "name": "Append row in Flagged For Review",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "#all-bischat-test"
+        },
+        "text": "No overdue customers today",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        432
+      ],
+      "id": "f9e3907a-047c-4569-ab9a-65f27a529a5d",
+      "name": "No Overdue Customer Message",
+      "webhookId": "63750b90-8592-49a7-858c-7bb41f101b9f",
+      "credentials": {
+        "slackApi": {
+          "id": "1KCYHaverM2GPvZC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#all-bischat-test",
+          "mode": "name"
+        },
+        "text": "={{ $('If (any overdue)').item.json.count }} customers have been flagged. Review the Flagged for Review Sheet.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        928,
+        64
+      ],
+      "id": "f212072e-2b42-46a7-b5cc-39bade12a0d2",
+      "name": "Check Flagged Sheet Message",
+      "webhookId": "399927ff-f296-455b-8e72-0394b9b196a6",
+      "credentials": {
+        "slackApi": {
+          "id": "1KCYHaverM2GPvZC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4a6efa59-3659-40a1-85fd-08131a736509",
+              "leftValue": "={{ $json.hasOverdue }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        352
+      ],
+      "id": "effcf090-1029-47d7-b0ca-f3a2c208192d",
+      "name": "If (any overdue)"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1vbSCLbjEpdIshbURm-Nlq47FoadxpbPjhte-1HDLjQ4/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "S1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vbSCLbjEpdIshbURm-Nlq47FoadxpbPjhte-1HDLjQ4/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        352
+      ],
+      "id": "5cfd0dd4-ea9b-4faf-a87c-38ac6a90b205",
+      "name": "Get customers",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst filteredData = $input.all().filter(e => new Date(e.json['Due Date']).getTime() < Date.now() && e.json.Status !== 'paid');\n\nreturn [{\n  json: {\n    hasOverdue: filteredData.length > 0,\n    count: filteredData.length,\n    customers: filteredData.map(e => e.json)\n  }\n}]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        352
+      ],
+      "id": "3ec345b4-df32-420e-a788-27138a762c81",
+      "name": "Filter Customers with Overdue"
+    },
+    {
+      "parameters": {
+        "content": "## **Overdue Sweep Path**",
+        "height": 560,
+        "width": 1840,
+        "color": "#FD81D6"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        32
+      ],
+      "id": "0d54c573-1efd-4022-8203-5527c7771a87",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -400,
+        928
+      ],
+      "id": "2064223b-3441-4197-9a69-daaac0159bce",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Approved",
+              "lookupValue": "Yes"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -176,
+        928
+      ],
+      "id": "2b7a94c2-fdb3-40dc-8e8f-fbb80d88de4e",
+      "name": "Get Flagged Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        48,
+        928
+      ],
+      "id": "afe008be-a324-46a1-a11e-d4d101d1aa9a",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "fromEmail": "prabhatjha2022@gmail.com",
+        "toEmail": "={{ $json.Email }}",
+        "subject": "=Action Required: Overdue Balance for Invoice {{ $json.Flagged }}",
+        "emailFormat": "text",
+        "text": "=Hi,\n\nThis is a friendly reminder from BisChat that we have an overdue balance associated with your account. \n\nInvoice Reference: {{ $json.Flagged }}\nAccount Email: {{ $json.Email }}\n\nPlease clear this pending balance at your earliest convenience to avoid any disruption to your services. If you have already made this payment, please disregard this message.\n\nThank you,\nThe BisChat Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        272,
+        848
+      ],
+      "id": "4e40c3f4-6848-40e9-93c1-e81bba0c01a6",
+      "name": "Send an Email1",
+      "webhookId": "2df7a834-1886-451d-834f-d924610a567d",
+      "credentials": {
+        "smtp": {
+          "id": "7Y1vLmEDjTVvboST",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": 0,
+            "Flagged": "={{ $('Loop Over Items1').item.json.Flagged }}",
+            "Email": "={{ $('Loop Over Items1').item.json.Email }}",
+            "Approved": "Notified"
+          },
+          "matchingColumns": [
+            "Flagged"
+          ],
+          "schema": [
+            {
+              "id": "Flagged",
+              "displayName": "Flagged",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Approved",
+              "displayName": "Approved",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        496,
+        928
+      ],
+      "id": "ee0c0994-e303-4160-82f1-45f2b848da01",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## **Send Warning**",
+        "height": 480,
+        "width": 1200,
+        "color": "#5CABFF"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        704
+      ],
+      "id": "d3489de8-00bb-4c71-ab5a-3ae7ac4988a5",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "fromEmail": "prabhatjha2022@gmail.com",
+        "toEmail": "={{ $json.Email }}",
+        "subject": "We've received your billing query",
+        "html": "=Hi {{ $('Get customers').item.json.Name }},\n\nThank you for reaching out about your billing concern. Since this involves a payment-related matter, our team is reviewing it personally to make sure it's handled correctly. We'll follow up with you shortly.\n\nBest regards,\nThe Relayo Billing Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1152,
+        288
+      ],
+      "id": "9b3e352f-3165-4172-9930-17f4b13ffd58",
+      "name": "Send a notification mail",
+      "webhookId": "e99249c5-b4f8-4555-9d8d-8760ceb611af",
+      "credentials": {
+        "smtp": {
+          "id": "7Y1vLmEDjTVvboST",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Invoice Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice Generation": {
+      "main": [
+        [
+          {
+            "node": "Append row in Billing Log Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get customers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get customers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Check Flagged Sheet Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in Flagged For Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in Billing Log Sheet": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in Flagged For Review": {
+      "main": [
+        [
+          {
+            "node": "Send a notification mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If (any overdue)": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Overdue Customer Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get customers": {
+      "main": [
+        [
+          {
+            "node": "Filter Customers with Overdue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Customers with Overdue": {
+      "main": [
+        [
+          {
+            "node": "If (any overdue)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Get Flagged Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Flagged Sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send an Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an Email1": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a notification mail": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2b36bc47-4e0f-4c7c-94f9-084da56a984d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9301c72e1eb2f309c10afde3ddf50a9ca258c8bb08bc5512c699c9e083fc5277"
+  },
+  "id": "yMsS45FgyqLMnBUU",
+  "tags": []
+}

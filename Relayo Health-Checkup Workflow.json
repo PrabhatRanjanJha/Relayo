@@ -1,0 +1,1002 @@
+{
+  "name": "Relayo Health-Checkup Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Approved"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        112,
+        -112
+      ],
+      "id": "d29024ef-e51c-4628-bd2a-cf33b8d13204",
+      "name": "Get row(s) from Billing",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1h08hMfuSmUNSzpENAWTSptoZ1HzWEqJpsigRqqneThs/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Flagged Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1h08hMfuSmUNSzpENAWTSptoZ1HzWEqJpsigRqqneThs/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Allowed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        112,
+        80
+      ],
+      "id": "c27858c2-0727-474c-9be0-5cbc3e490f89",
+      "name": "Get row(s) from Email Query",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1-pPQu89kkx9Ev0VGq6Ho9wx9Nm13wnveRazPWgj4MqU/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "checked"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        112,
+        272
+      ],
+      "id": "303d13bb-bb78-4ff6-9396-e720afce8789",
+      "name": "Get row(s) from Discord Messages",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst staleRows = items.filter(item => {\n  const diffInDays = (Date.now() - new Date(item.json['Flagged Date']).getTime()) / 86400000;\n  return diffInDays > 3;\n});\nreturn staleRows.map(item => ({\n  json: {\n    ...item.json,\n    source: \"Billing\"\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        -112
+      ],
+      "id": "53058517-aa8f-4474-ba01-e6f160a01ae6",
+      "name": "Billing Flagged Days Check",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst staleRows = items.filter(item => {\n  const diffInDays = (Date.now() - new Date(item.json['Flagged Date']).getTime()) / 86400000;\n  return diffInDays > 3;\n});\nreturn staleRows.map(item => ({\n  json: {\n    ...item.json,\n    source: \"Email\"\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        80
+      ],
+      "id": "4d079d5e-634b-4351-a78b-44917910f5ee",
+      "name": "Mail Query Days Check",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst staleRows = items.filter(item => {\n  const diffInDays = (Date.now() - new Date(item.json['flagged date']).getTime()) / 86400000;\n  return diffInDays > 3;\n});\nreturn staleRows.map(item => ({\n  json: {\n    ...item.json,\n    source: \"Discord\"\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        272
+      ],
+      "id": "b3c50cd6-f5d0-457d-86e0-605414fd0758",
+      "name": "Discord Messages Days Check",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        560,
+        64
+      ],
+      "id": "5a6cb2ec-4be4-440c-9a33-829fb658edb4",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#all-bischat-test",
+          "mode": "name"
+        },
+        "text": "No stale flagged items today",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        176
+      ],
+      "id": "fd9a6a52-0495-408e-8122-bbe61974cf89",
+      "name": "Send no stale items notification",
+      "webhookId": "b28ba27c-f9f3-4f71-9078-8b32f103c17a",
+      "credentials": {
+        "slackApi": {
+          "id": "1KCYHaverM2GPvZC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#all-bischat-test",
+          "mode": "name"
+        },
+        "text": "=📊 Daily Stale Flags Report\n\n{{ $json.total }} items have been flagged for more than 3 days without review.\n\nBilling: {{ $json.counts.Billing }}\nEmail: {{ $json.counts.Email }}\nDiscord: {{ $json.counts.Discord }}\n\nPlease review these in their respective sheets.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1232,
+        -16
+      ],
+      "id": "17b1cede-d60e-491a-b43d-977d355cf88b",
+      "name": "Send stale items notification",
+      "webhookId": "b28ba27c-f9f3-4f71-9078-8b32f103c17a",
+      "credentials": {
+        "slackApi": {
+          "id": "1KCYHaverM2GPvZC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## **Relayo Stale-Flag Monitor**",
+        "height": 672,
+        "width": 1664,
+        "color": "#A68CC0"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -240
+      ],
+      "id": "b05c163a-9576-49c6-8edb-c1abff148abb",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -112,
+        80
+      ],
+      "id": "6954df0f-b7e3-4fc2-a235-e6371aca8b06",
+      "name": "Schedule Trigger for Workflow1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -208,
+        1280
+      ],
+      "id": "2e338657-31e9-416a-a5f2-28cbcff39396",
+      "name": "Schedule Trigger for Workflow2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "reply with \"OK\"",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        16,
+        784
+      ],
+      "id": "1fa0a157-5c1a-4fed-b697-f7f743f0e421",
+      "name": "Basic LLM Chain",
+      "retryOnFail": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        96,
+        1008
+      ],
+      "id": "4e3a8b8b-1410-4eab-95e1-a548120379db",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "Bjn4JOHSaC1ZmW05",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "81ddfdbf-fc96-444c-9ac4-83eff8900823",
+              "name": "service",
+              "value": "groq",
+              "type": "string"
+            },
+            {
+              "id": "e5ce0fac-f0b3-4fdf-8b1b-6cdb7eeb533b",
+              "name": "status",
+              "value": "={{ $json.error ? \"DOWN\" : \"OK\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        368,
+        896
+      ],
+      "id": "398b6f1f-c4be-4e8b-a8d6-0b73873cb399",
+      "name": "Groq Check"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 1,
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        1184
+      ],
+      "id": "9f3df998-a273-4823-a670-4232d870ddbf",
+      "name": "Get many messages",
+      "webhookId": "c17f3aae-35f3-40d2-91ca-a289bc496612",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "vPsmU1igueSZftkg",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "81ddfdbf-fc96-444c-9ac4-83eff8900823",
+              "name": "service",
+              "value": "gmail",
+              "type": "string"
+            },
+            {
+              "id": "e5ce0fac-f0b3-4fdf-8b1b-6cdb7eeb533b",
+              "name": "status",
+              "value": "={{ $json.error ? \"DOWN\" : \"OK\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        368,
+        1184
+      ],
+      "id": "b9594387-73cf-4b06-b077-fc029e5db169",
+      "name": "Gmail Check"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RBLv4u-pO5r_RK0pFK2g76-4c9WPGXqZs3szxFrnWsY/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": []
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        80,
+        1376
+      ],
+      "id": "53b6c93b-32c6-4b69-a351-f368a8c96e6b",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "PNK0TIv50oIhUy6s",
+          "name": "Google Sheets account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "81ddfdbf-fc96-444c-9ac4-83eff8900823",
+              "name": "service",
+              "value": "sheets",
+              "type": "string"
+            },
+            {
+              "id": "e5ce0fac-f0b3-4fdf-8b1b-6cdb7eeb533b",
+              "name": "status",
+              "value": "={{ $json.error ? \"DOWN\" : \"OK\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        368,
+        1376
+      ],
+      "id": "a1977b14-3e0e-49e7-9665-25c57f4bcca0",
+      "name": "Sheets Check"
+    },
+    {
+      "parameters": {
+        "url": "=https://discord.com/api/v10/users/@me",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bot MTU1Mjk5NTcyMTMxNjI3NDI2Ng.GHnhkh.ye8hiH4EUJVGR9aX7sbRB56e4Pcz_4vHW83Htg"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        80,
+        1568
+      ],
+      "id": "43de15cf-5d4e-4dab-8c66-d40f51c18102",
+      "name": "HTTP Request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "81ddfdbf-fc96-444c-9ac4-83eff8900823",
+              "name": "service",
+              "value": "discord",
+              "type": "string"
+            },
+            {
+              "id": "e5ce0fac-f0b3-4fdf-8b1b-6cdb7eeb533b",
+              "name": "status",
+              "value": "={{ $json.error ? \"DOWN\" : \"OK\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        368,
+        1568
+      ],
+      "id": "22f9cf1e-00d6-4ec8-be6b-89a0a086ce52",
+      "name": "Discord Check"
+    },
+    {
+      "parameters": {
+        "numberInputs": 4
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        592,
+        1248
+      ],
+      "id": "fac8f480-ca93-4f8c-9ed5-0799b479bf7f",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst counts = items.reduce((acc, item) => {\n  const source = item.json.source;\n  acc[source] = (acc[source] || 0) + 1;\n  return acc;\n}, {});\n\nreturn [{\n  json: {\n    counts: counts,\n    total: items.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        -16
+      ],
+      "id": "76cc1f20-58f9-4022-b9ee-862cd0aaba2c",
+      "name": "Frequency Dictionary"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst downServices = items\n  .filter(item => item.json.status === \"DOWN\")\n  .map(item => item.json.service);\n\nreturn [{\n  json: {\n    downServices: downServices,\n    anyDown: downServices.length > 0\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        1280
+      ],
+      "id": "d20b04e0-d075-43c3-95cd-87c069e75bce",
+      "name": "Any Down Check"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0c681cf4-7d7e-4e07-aa45-d4b7fb8fd8d7",
+              "leftValue": "={{ $('Merge').all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        784,
+        80
+      ],
+      "id": "06ea2cbd-e3af-4bbf-9458-cbebae88004a",
+      "name": "If_w1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "689a4ac7-c094-46ae-8bec-93f2f5711cd9",
+              "leftValue": "={{ $json.anyDown }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1040,
+        1280
+      ],
+      "id": "2871b41c-2a1f-41d2-9212-b1ce291e7a85",
+      "name": "If_w2"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#all-bischat-test",
+          "mode": "name"
+        },
+        "text": "=🚨 Service Health Alert\n\nThe following service(s) are currently down or failing:\n\n{{ $json.downServices.join(', ') }}\n\nPlease check the affected service(s).",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1264,
+        1184
+      ],
+      "id": "5db2f5fc-def5-4158-a0ce-8244e0fe6784",
+      "name": "Send Service Down Alert",
+      "webhookId": "571c410a-b8a7-48c1-8b72-1fc27c0368b8",
+      "credentials": {
+        "slackApi": {
+          "id": "1KCYHaverM2GPvZC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#all-bischat-test",
+          "mode": "name"
+        },
+        "text": "✅ Service Health Check — All Clear  All monitored services are up and responding normally:  Groq  Gmail  Sheets  Discord  No issues detected.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1264,
+        1376
+      ],
+      "id": "4d0b2304-5acd-4544-8b35-71f70030f245",
+      "name": "Send All Clear Alert",
+      "webhookId": "70872eae-947c-4c84-a740-e631c01b6e87",
+      "credentials": {
+        "slackApi": {
+          "id": "1KCYHaverM2GPvZC",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## **Relayo Service Health Check**",
+        "height": 1024,
+        "width": 1760,
+        "color": "#E95858"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -304,
+        704
+      ],
+      "id": "ee1542ea-ffde-442a-8f3b-f9980456dbad",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get row(s) from Billing": {
+      "main": [
+        [
+          {
+            "node": "Billing Flagged Days Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) from Email Query": {
+      "main": [
+        [
+          {
+            "node": "Mail Query Days Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) from Discord Messages": {
+      "main": [
+        [
+          {
+            "node": "Discord Messages Days Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord Messages Days Check": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Mail Query Days Check": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Billing Flagged Days Check": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If_w1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger for Workflow1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) from Billing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) from Email Query",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) from Discord Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger for Workflow2": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Groq Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Gmail Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Sheets Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Discord Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Check": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Check": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Sheets Check": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Discord Check": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 3
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Any Down Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Frequency Dictionary": {
+      "main": [
+        [
+          {
+            "node": "Send stale items notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Down Check": {
+      "main": [
+        [
+          {
+            "node": "If_w2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_w1": {
+      "main": [
+        [
+          {
+            "node": "Frequency Dictionary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send no stale items notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_w2": {
+      "main": [
+        [
+          {
+            "node": "Send Service Down Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send All Clear Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "647809c7-3bb9-483b-88c1-0b7bf5db25b0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9301c72e1eb2f309c10afde3ddf50a9ca258c8bb08bc5512c699c9e083fc5277"
+  },
+  "id": "do1zqueLo6JAgq7A",
+  "tags": []
+}
